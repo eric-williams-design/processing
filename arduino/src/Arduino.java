@@ -66,22 +66,6 @@ public class Arduino {
    */
   public static final int I2C = 6;
   /**
-   * Constant to set a pin as a one wire communication pin (DS18b20 for example).
-   */
-  public static final int ONEWIRE = 0x07;
-  /**
-   * Constant to set a pin to input mode and enable the pull-up resistor (in a call to pinMode()).
-   */
-  public static final int STEPPER = 0x08;
-  /**
-   * Constant to set a pin to input mode and enable the pull-up resistor (in a call to pinMode()).
-   */
-  public static final int ENCODER = 0x09;
-  /**
-   * Constant to set an interrupt to a frequency measurement pin
-   */
-  public static final int FREQUENCY = 0x10;
-  /**
    * Constant to set a pin to input mode and enable the pull-up resistor (in a call to pinMode()).
    */
   public static final int INPUT_PULLUP = 11;
@@ -101,28 +85,18 @@ public class Arduino {
   Serial serial;
   SerialProxy serialProxy;
   Firmata firmata;
-/**
-  * We need a class descended from PApplet so that we can override the
-  * serialEvent() method to capture serial data.  We can't use the Arduino
-  * class itself, because PApplet defines a list() method that couldn't be
-  * overridden by the static list() method we use to return the available
-  * serial ports.  This class needs to be public so that the Serial class
-  * can access its serialEvent() method.
-   * 
-   * @author EW
-   *
-   */
+
+  // We need a class descended from PApplet so that we can override the
+  // serialEvent() method to capture serial data.  We can't use the Arduino
+  // class itself, because PApplet defines a list() method that couldn't be
+  // overridden by the static list() method we use to return the available
+  // serial ports.  This class needs to be public so that the Serial class
+  // can access its serialEvent() method.
   public class SerialProxy extends PApplet {
-	  /**
-	   * Serial proxy extends the processing applet so that the list() command can be used without error
-	   * */
     public SerialProxy() {
     }
-/**
- * Serial event instance
- * @param which particular instance
- * */
-  public void serialEvent(Serial which) {
+
+    public void serialEvent(Serial which) {
       try {
         // Notify the Arduino class that there's serial data for it to process.
         while (which.available() > 0)
@@ -133,18 +107,14 @@ public class Arduino {
       }
     }
   }
-  /**
-   * Firmata Writer is used for communicating with the Configurable Firmata installed on the microcontroller
-   * */
+
   public class FirmataWriter implements Firmata.Writer {
     public void write(int val) {
       serial.write(val);
 //      System.out.print("<" + val + " ");
     }
   }
-  /**
-   * dispose of current serial communication instance
-   * */
+
   public void dispose() {
     this.serial.dispose();
   }
@@ -153,8 +123,6 @@ public class Arduino {
    * Get a list of the available Arduino boards; currently all serial devices
    * (i.e. the same as Serial.list()).  In theory, this should figure out
    * what's an Arduino board and what's not.
-   * 
-   * @return list of ports that are potentially arduinos
    */
   public static String[] list() {
     return Serial.list();
@@ -204,7 +172,6 @@ public class Arduino {
    *
    * @param pin the digital pin whose value should be returned (from 2 to 13,
    * since pins 0 and 1 are used for serial communication)
-   * @return state of pin
    */
   public int digitalRead(int pin) {
     return firmata.digitalRead(pin);
@@ -215,39 +182,11 @@ public class Arduino {
    * 1023 (5 volts).
    *
    * @param pin the analog pin whose value should be returned (from 0 to 5)
-   * @return analog reading (0-1023)
    */
   public int analogRead(int pin) {
     return firmata.analogRead(pin);
   }
-  /**
-   * Returns the last known value of frequency measured on pin 2
-   * @return frequency float
-   * */
-  public float freqRead() {
-	  return firmata.freqRead();
-  } 
-  /**
-   * read a period from the frequency counter
-   * @return period as float
-   * */
-  public float periodRead() {
-	  return firmata.periodRead();
-  }
-  /**
-   * read the current steps from the sysex message after a report request
-   * @return current steps
-   * */
-  public int stepsRead() {
-	  return firmata.stepsRead();
-  }
-  /**
-   * gets the devicenumber for a stepper who has completed its steps
-   * @return moveDeviceNum
-   * */
-  public int moveComplete() {
-	  return firmata.moveComplete();
-  }
+
   /**
    * Set a digital pin to input or output mode.
    *
@@ -311,70 +250,9 @@ public class Arduino {
       throw new RuntimeException("Error inside Arduino.servoWrite()");
     }
   }
-  /**
-   * I2C config
-   * 
+  /*
+   * THIS IS THE NEW PART
    * */
-  public void mcp4725config() {
-	  try {
-		  firmata.mcp4725config();
-  } catch (Exception e) {
-	  e.printStackTrace();
-	  throw new RuntimeException("Error inside Arduino.mcp4725config()");
-	  }
-  }
-  
-  /**
-   * I2C write value to an mcp4725 DAC
-   * 
-   * @param address i2c address of device
-   * @param value 12 bit voltage value as integer (0-4096)
-   * */
-  public void mcp4725(int address, int value) {
-	  try {
-		  firmata.mcp4725(address, value);
-	  } catch (Exception e) {
-	  e.printStackTrace();
-	  throw new RuntimeException("Error inside mcp4725");
-	  }
-	  
-  }
-  /**
-   * Measure frequency events on a pin
-   *
-   * @param pin the pin used for frequency measurement
-   * @param mode the type of interrupt used to measure frequency (3->RISING, 4->FALLING, 5->CHANGE)
-   * @param period the interval used for measuremnt (period of reporting data)
-   */
-  	public void freqConfig(int pin, int mode, int period) {
-  		try {
-    	      firmata.freqConfig(pin, mode, period);
-    	    } catch (Exception e) {
-    	      e.printStackTrace();
-    	      throw new RuntimeException("Error inside Arduino.freqConfig()");
-    	    }
-  	}
-    /**
-     * Configure frequency measurement on an arduino pin with interrupt
-     *
-     * @param pin pin used for interrupt based frequency measurements
-     */
-  	public void freqDisable(int pin) {
-  		try {
-  			firmata.freqDisable(pin);
-  			System.out.println("sent clear command in processing");
-  		} catch (Exception e) {
-  			e.printStackTrace();
-  			throw new RuntimeException("Error inside Arduino.freqDisable");
-  		}
-  	} 
-    /**
-     * Configure a stepper motor using
-     *
-     * @param deviceNum the number identifying the specific stepper motor 0-9
-     * @param stepPin pin connected to stepper motor step pin
-     * @param dirPin pin connected to stepper motor direction pin
-     */
     public void asConfig(int deviceNum, int stepPin, int dirPin) {
   	    try {
   	      firmata.asConfig(deviceNum,stepPin,dirPin);
@@ -383,121 +261,61 @@ public class Arduino {
   	      throw new RuntimeException("Error inside Arduino.ASConfig()");
   	    }
   	  }
-    /**
-     * Set the zero position on a stepper motor
-     * 
-     *  @param deviceNum the number identifying the specific stepper motor 0-9
-     * */
+    
     public void asZero(int deviceNum) {try {
         firmata.asZero(deviceNum);
       } catch (Exception e) {
         e.printStackTrace();
         throw new RuntimeException("Error inside Arduino.asZero(), check for config");
       }}
-    /**
-     * Drive a stepper motor with a given number of steps
-     * 
-     *  @param deviceNum the number identifying the specific stepper motor 0-9
-     *  @param steps the number of steps to drive stepper motor (signed 32bit integer)
-     * */
     public void asStep(int deviceNum, int steps) {try {
         firmata.asStep(deviceNum, steps);
       } catch (Exception e) {
         e.printStackTrace();
         throw new RuntimeException("Error inside Arduino.asStep(), check for config");
       }}
-    /**
-     * Drive a stepper motor to a step location (must have been zeroed during homing to be accurate)
-     * 
-     *  @param deviceNum the number identifying the specific stepper motor 0-9
-     *  @param moveto the desired step location (signed 32bit integer)
-     * */
-    public void asTo(int deviceNum, int moveto) {try {
-        firmata.asTo(deviceNum,moveto);
+    public void asTo(int deviceNum, int speed) {try {
+        firmata.asTo(deviceNum,speed);
       } catch (Exception e) {
         e.printStackTrace();
         throw new RuntimeException("Error inside Arduino.asTo(), check for config");
       }}
-    /**
-     * Stop a stepper motor 
-     * 
-     *  @param deviceNum the specific stepper motor to stop
-     *  
-     * */
     public void asStop(int deviceNum) {try {
-        firmata.asStop(deviceNum);
+        firmata.asZero(deviceNum);
       } catch (Exception e) {
         e.printStackTrace();
         throw new RuntimeException("Error inside Arduino.asStop(), check for config");
       }}
-    /**
-     * Report the position of a stepper motor 
-     * 
-     *  @param deviceNum the stepper motor which we want a report
-     *  
-     * */
-    public void asReport(int deviceNum) {try {
+    public void asReport(int deviceNum, int speed) {try {
         firmata.asReport(deviceNum);
       } catch (Exception e) {
         e.printStackTrace();
         throw new RuntimeException("Error inside Arduino.asReport(), check for config");
       }}
-    /**
-     * Set the maximum speed of a stepper motor in steps/second 
-     * 
-     *  @param deviceNum the stepper motor which we want to set speed
-     *  @param speed the maximum speed in steps/second
-     * */
     public void asSetSpeed(int deviceNum, float speed) {try {
         firmata.asSetSpeed(deviceNum,speed);
       } catch (Exception e) {
         e.printStackTrace();
         throw new RuntimeException("Error inside Arduino.asSetSpeed(), check for config");
       }}  
-    /**
-     * Set the acceleration/deceleration of a stepper motor in steps/second^2 
-     * 
-     *  @param deviceNum the stepper motor which we want a report
-     *  @param accel the acceleration in steps/second^2
-     * */
     public void asSetAccel(int deviceNum, float accel) {try {
         firmata.asSetAccel(deviceNum,accel);
       } catch (Exception e) {
         e.printStackTrace();
         throw new RuntimeException("Error inside Arduino.asSetAccel(), check for config");
       }}  
-    /**
-     * Setup a group of steppers using Multistepper
-     * 
-     * @param groupNum the group number you would like to setup
-     * @param deviceNum1 the first stepper number which we want to add to group
-     * @param deviceNum2 the second stepper number which we want to add to group
-     * 
-     * */
     public void asMultiConfig(int groupNum, int deviceNum1, int deviceNum2) {try {
         firmata.asMultiConfig(groupNum, deviceNum1, deviceNum2);
       } catch (Exception e) {
         e.printStackTrace();
         throw new RuntimeException("Error inside Arduino.asMultiConfig(), check config");
       }}
-    /**
-     * Drive a Multistepper group to a step location (must have been zeroed during homing to be accurate)
-     * 
-     *  @param groupNum the number identifying the specific Multistepper group we want to move
-     *  @param moveto the desired step location (signed 32bit integer)
-     * */
-    public void asMultiTo(int groupNum, int moveto) {try {
-        firmata.asMultiTo(groupNum, moveto);
+    public void asMultiTo(int groupNum, int steps) {try {
+        firmata.asMultiTo(groupNum, steps);
       } catch (Exception e) {
         e.printStackTrace();
         throw new RuntimeException("Error inside Arduino.asMultiTo(), check config");
       }}
-    /**
-     * Stop a Multistepper group
-     * 
-     *  @param groupNum the number identifying the specific Multistepper group we want to move
-     * 
-     * */
 	public void asMultiStop(int groupNum) {try {
 		firmata.asMultiStop(groupNum);
 		} catch (Exception e) {

@@ -1,0 +1,1 @@
+typeSearchIndex = [{"l":"All Classes","u":"allclasses-index.html"},{"p":"cc.arduino","l":"Arduino"},{"p":"org.firmata","l":"Firmata"},{"p":"cc.arduino","l":"Arduino.FirmataWriter"},{"p":"cc.arduino","l":"Arduino.SerialProxy"},{"p":"org.firmata","l":"Firmata.Writer"}];updateSearchResults();

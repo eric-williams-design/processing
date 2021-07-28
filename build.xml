@@ -6,13 +6,13 @@
 	<property name="doc" location="reference"/> <!-- javadocs -->
 	<property name="jars" location="jars"/> <!-- jar files -->
 	<property name="lib" location="lib"/> <!-- local libraries linked against -->
-	<property name="dist" location="arduino"/> <!-- build product location -->
+	<property name="dist" location="${user.home}/Documents/Processing/libraries/arduino"/> <!-- build product location -->
 	<property name="resources" location="resources"/> <!-- location of general java resources -->
 	<property name="resources_macosx" location="resources_macosx"/> <!-- location of Mac OS X specific resources -->
 	<property name="compile.debug" value="true"/>
 
-	<fileset id="lib.jars" dir="/Applications/Processing.app/Contents/Java/"
-	         includes="core/library/core.jar modes/java/libraries/serial/library/serial.jar modes/java/libraries/serial/library/jssc.jar" />
+	<fileset id="lib.jars" dir="/Users/EW/Downloads/processing-3.5.4-windows64/processing-3.5.4/"
+		         includes="core/library/core.jar modes/java/libraries/serial/library/serial.jar modes/java/libraries/serial/library/jssc.jar" />
 
 	<path id="lib.path">
 		<fileset refid="lib.jars"/>
@@ -28,7 +28,7 @@
 	<target name="compile" depends="init" description="Compile code">
 		<mkdir dir="${bin}"/>
 		<javac deprecation="on" srcdir="${src}" destdir="${bin}"
-			   source="1.3" target="1.2"
+			   source="1.8" target="1.8"
 			   includeAntRuntime="no"
 			   classpathref="lib.path" debug="${compile.debug}">
 		</javac>
@@ -68,7 +68,7 @@
 		<copy toDir="${dist}/examples">
 			<fileset dir="${examples}"/>
 		</copy>
-		<!-- Copy reference -->
+		<!-- Copy reference--> 
 		<copy toDir="${dist}/reference">
 			<fileset dir="${doc}"/>
 		</copy>

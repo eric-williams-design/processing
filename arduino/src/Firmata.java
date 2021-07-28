@@ -57,26 +57,6 @@ public class Firmata {
    * Constant to set a pin to I2C mode (in a call to pinMode()).
    */
   public static final int I2C = 6;
-  /**
-   * Constant to set a pin as a one wire communication pin (DS18b20 for example).
-   */
-  public static final int ONEWIRE = 7;
-  /**
-   * Constant to set a pin to input mode and enable the pull-up resistor (in a call to pinMode()).
-   */
-  public static final int STEPPER = 8;
-  /**
-   * Constant to set a pin to input mode and enable the pull-up resistor (in a call to pinMode()).
-   */
-  public static final int ENCODER = 9;
-  /**
-   * Constant to set an interrupt to a frequency measurement pin
-   */
-  public static final int FREQUENCY = 0x10;
-  /**
-   * Constant to set a pin to input mode and enable the pull-up resistor (in a call to pinMode()).
-   */
-  public static final int INPUT_PULLUP = 11;
 
   /**
    * Constant to write a high value (+5 volts) to a pin (in a call to
@@ -89,7 +69,7 @@ public class Firmata {
    */
   public static final int HIGH = 1;
 
-  private final int MAX_DATA_BYTES = 4096; //changed from 4096
+  private final int MAX_DATA_BYTES = 4096;
 
   private final int DIGITAL_MESSAGE        = 0x90; // send data for a digital port
   private final int ANALOG_MESSAGE         = 0xE0; // send data for an analog pin (or PWM)
@@ -103,10 +83,6 @@ public class Firmata {
 
   // extended command set using sysex (0-127/0x00-0x7F)
   /* 0x00-0x0F reserved for user-defined commands */
-  private final int FREQUENCY_COMMAND			= 0x63; //
-  private final int FREQUENCY_SUBCOMMAND_CLEAR	= 0x00; //
-  private final int FREQUENCY_SUBCOMMAND_QUERY	= 0x01; //
-  private final int FREQUENCY_SUBCOMMAND_REPORT	= 0x02; //
   private final int ACCELSTEPPER_DATA           = 0x62; //
   private final int ACCELSTEPPER_ZERO           = 0x01; //
   private final int ACCELSTEPPER_STEP           = 0x02; //
@@ -122,6 +98,8 @@ public class Firmata {
   private final int ACCELSTEPPER_MULTI_TO       = 0x21; //
   private final int ACCELSTEPPER_MULTI_STOP     = 0x23; //
   private final int ACCELSTEPPER_MULTI_MOVECOMPLETE       = 0x24; //
+
+  
   private final int SERVO_CONFIG           = 0x70; // set max angle, minPulse, maxPulse, freq
   private final int STRING_DATA            = 0x71; // a string message with 14-bits per char
   private final int SHIFT_DATA             = 0x75; // a bitstream to/from a shift register
@@ -130,7 +108,7 @@ public class Firmata {
   private final int I2C_CONFIG             = 0x78; // config I2C settings such as delay times and power pins
   private final int EXTENDED_ANALOG        = 0x6F; // analog write (PWM, Servo, etc) to any pin
   private final int PIN_STATE_QUERY        = 0x6D; // ask for a pin's current mode and value
-  private final int PIN_STATE_RESPONSE     = 0x6E; // reply with pin's current mode and value *see FirmataExt.cpp
+  private final int PIN_STATE_RESPONSE     = 0x6E; // reply with pin's current mode and value
   private final int CAPABILITY_QUERY       = 0x6B; // ask for supported modes and resolution of all pins
   private final int CAPABILITY_RESPONSE    = 0x6C; // reply with supported modes and resolution
   private final int ANALOG_MAPPING_QUERY   = 0x69; // ask for mapping of analog to pin numbers
@@ -139,7 +117,7 @@ public class Firmata {
   private final int SAMPLING_INTERVAL      = 0x7A; // set the poll rate of the main loop
   private final int SYSEX_NON_REALTIME     = 0x7E; // MIDI Reserved for non-realtime messages
   private final int SYSEX_REALTIME         = 0x7F; // MIDI Reserved for realtime messages
-  
+
   int waitForData = 0;
   int executeMultiByteCommand = 0;
   int multiByteChannel = 0;
@@ -147,27 +125,20 @@ public class Firmata {
   boolean parsingSysex;
   int sysexBytesRead;
 
-  int[] digitalOutputData = new int[54]; //{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-  int[] digitalInputData  = new int[54]; //{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-  int[] analogInputData   = new int[16]; //{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+  int[] digitalOutputData = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+  int[] digitalInputData  = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+  int[] analogInputData   = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
   private final int MAX_PINS = 128;
 
   int[] pinModes = new int[MAX_PINS];
   int[] analogChannel = new int[MAX_PINS];
+  int[] accelStepperChannel = new int[8];
   int[] pinMode = new int[MAX_PINS];
 
   int majorVersion = 0;
   int minorVersion = 0;
-  
-  int[] accelStepperChannel = new int[8];
-  int lastTime =0;
-  int lastCount=0;
-  float period=1f;
-  float freq=1f;
-  int reportSteps=0; //may need to use long for this 1m/60mm*200=3333 steps without microstepping
-  int moveDeviceNum=-1; //set to -1 when move starts and then to deviceNum or groupNUm that completes
-  
+
   /**
    * An interface that the Firmata class uses to write output to the Arduino
    * board. The implementation should forward the data over the actual
@@ -193,42 +164,38 @@ public class Firmata {
   public Firmata(Writer writer) {
     this.out = writer;
   }
-/**
- * Enable all ports 
- */
+
   public void init() {
-     //enable all ports; firmware should ignore non-existent ones
-    for (int i = 0; i < 54; i++) {
+    // enable all ports; firmware should ignore non-existent ones
+    for (int i = 0; i < 16; i++) {
       out.write(REPORT_DIGITAL | i);
       out.write(1);
     }
-    
-    queryCapabilities(); // request pin capabilities from arduino, generates a capability response which contains data
-    
+
+    //queryCapabilities();
     queryAnalogMapping();
 
-    for (int i = 0; i < 16; i++) {
-      out.write(REPORT_ANALOG | i);
-      out.write(1);
-    } //SOMEHOW NEED THIS TO RUN SO i CAN USE I2C
+//    for (int i = 0; i < 16; i++) {
+//      out.write(REPORT_ANALOG | i);
+//      out.write(1);
+//    }
   }
+
   /**
    * Returns the last known value read from the digital pin: HIGH or LOW.
    *
    * @param pin the digital pin whose value should be returned (from 2 to 13,
    * since pins 0 and 1 are used for serial communication)
-   * @return state of selected pin
    */
   public int digitalRead(int pin) {
-//    pinMode(pin,INPUT); DID NOT WORK!!!
-	  return (digitalInputData[pin >> 3] >> (pin & 0x07)) & 0x01; //
+    return (digitalInputData[pin >> 3] >> (pin & 0x07)) & 0x01;
   }
+
   /**
    * Returns the last known value read from the analog pin: 0 (0 volts) to
    * 1023 (5 volts).
    *
    * @param pin the analog pin whose value should be returned (from 0 to 5)
-   * @return integer value representing ADC (0-1023)
    */
   public int analogRead(int pin) {
     return analogInputData[pin];
@@ -240,7 +207,7 @@ public class Firmata {
    * @param pin the pin whose mode to set (from 2 to 13)
    * @param mode either Arduino.INPUT or Arduino.OUTPUT
    */
-  public void pinMode(int pin, int mode) { //changed from int pin to byte pin
+  public void pinMode(int pin, int mode) {
     out.write(SET_PIN_MODE);
     out.write(pin);
     out.write(mode);
@@ -255,7 +222,7 @@ public class Firmata {
    * (5 volts)
    */
   public void digitalWrite(int pin, int value) {
-    int portNumber = (pin >> 3) & 0x0F; // 
+    int portNumber = (pin >> 3) & 0x0F;
 
     if (value == 0)
       digitalOutputData[portNumber] &= ~(1 << (pin & 0x07));
@@ -293,103 +260,10 @@ public class Firmata {
     out.write(value & 0x7F);
     out.write(value >> 7);
   }
-  /**
-   * I2C config
+  /*
+   * new bit of code
    * 
    * */
-  public void mcp4725config() {
-	  out.write(START_SYSEX);
-	  out.write(I2C_CONFIG);
-	  out.write(END_SYSEX);
-  }
-  
-  /**
-   * I2C write value to an mcp4725 DAC
-   * 
-   * @param address i2c address of device
-   * @param value 12 bit voltage value as integer (0-4096)
-   * */
-  public void mcp4725(int address, int value) {
-	  int writemode = 96; //64 for regular write, 96 for EEPROM write
-	  int msb = (value>>4);
-	  int lsb = (value<<4);
-//	  System.out.println(msb<<4|lsb>>4);
-	  out.write(START_SYSEX);
-	  out.write(I2C_REQUEST);
-	  out.write(address); //I2C address of the DAC, varies between devices 0x60 here
-	  out.write(0x00);  //specifies write and restart transmission but we'll put this in loop
-	  out.write(writemode & 127); //sets mcp to write mode
-	  out.write(writemode >> 7);
-	  out.write(msb & 127); //LSB of data
-	  out.write(msb >> 7); //MSB of data
-	  out.write(lsb & 127); //LSB of data
-	  out.write(lsb >> 7); //MSB of data
-	  out.write(END_SYSEX);
-	  }
-  
-  
-  /**
-   * Measure frequency events on a pin
-   *
-   * @param pin the pin used for frequency measurement
-   * @param mode the type of interrupt used to measure frequency (3->RISING, 4->FALLING, 5->CHANGE)
-   * @param period the interval used for measuremnt (period of reporting data)
-   */
-  public void freqConfig(int pin, int mode, int period) {
-  		out.write(START_SYSEX);
-  		out.write(FREQUENCY_COMMAND);
-  		out.write(FREQUENCY_SUBCOMMAND_QUERY);
-  		out.write(pin);
-  		out.write(mode); //rising, falling or change
-  		out.write(period & 0x7F);
-  		out.write(period >> 7);
-  		out.write(END_SYSEX);
-  		}
-  /**
-   * Returns the last known value of frequency measured on pin 2
-   * @return frequency float
-   * */
-  public float freqRead() {
-	  return freq;
-  }
-  /**
-   * 
-   * read a period from the frequency counter
-   *  @return period as float
-   * 
-   * */
-  public float periodRead() {
-	  return period;
-  }
-  /**
-   * read the current steps from the sysex message after a report request
-   * @return current steps
-   * */
-  public int stepsRead() {
-	  return reportSteps;
-  }
-  /**
-   * gets the devicenumber for a stepper who has completed its steps
-   * @return moveDeviceNum
-   * */
-  public int moveComplete() {
-	  return moveDeviceNum;
-  }
-  /**
-   * Configure frequency measurement on an arduino pin with interrupt
-   *
-   * @param pin pin used for interrupt based frequency measurements
-   */
-  public void freqDisable(int pin) {
-		out.write(START_SYSEX);
-		out.write(FREQUENCY_COMMAND);
-		out.write(FREQUENCY_SUBCOMMAND_CLEAR);
-		out.write(pin);
-		out.write(END_SYSEX);
-		lastTime=0;
-		lastCount=0;
-		}
-  
   /**
    * Configure a stepper motor using
    *
@@ -402,13 +276,13 @@ public class Firmata {
 	    out.write(ACCELSTEPPER_DATA);
 	    out.write(ACCELSTEPPER_CONFIG);
 	    out.write(deviceNum);
-	    out.write(16); //driver configuration, full steps, no enable pin
+	    out.write(0100000); //2 wire configuration, full steps, no enable pin
 	    out.write(stepPin);
 	    out.write(dirPin);
 	    out.write(END_SYSEX);
-	   // System.out.println("Stepper "+deviceNum+" configured on pins " + stepPin + " & " + dirPin);
+	    System.out.println("accelstepper config on pins " + stepPin + " & " + dirPin);
 	  }
-  /**
+  /*
    * Set the zero position on a stepper motor
    * 
    *  @param deviceNum the number identifying the specific stepper motor 0-9
@@ -420,14 +294,8 @@ public class Firmata {
 	    out.write(ACCELSTEPPER_ZERO);
 	    out.write(deviceNum);
 	    out.write(END_SYSEX);
-	    //System.out.println("Stepper "+deviceNum+" has be re-zeroed and must be homed before absolute position commands");
+	    System.out.println("accelstepper zero on deviceNum " + deviceNum);
 	  }
-  /**
-   * Drive a stepper motor with a given number of steps
-   * 
-   *  @param deviceNum the number identifying the specific stepper motor 0-9
-   *  @param steps the number of steps to drive stepper motor (signed 32bit integer)
-   * */
   public void asStep(int deviceNum, int steps) {
 	  int[] arg= encode32bit(steps);
 	  	out.write(START_SYSEX);
@@ -440,14 +308,8 @@ public class Firmata {
 	    out.write(arg[3]); //samples from 21 to 27
 	    out.write(arg[4]);	    
 	    out.write(END_SYSEX);
-	    //System.out.println("Stepper "+deviceNum+" has been called to move"+steps+" steps");
+	    System.out.println("accelstepper set to move"+steps+" steps on stepper " + deviceNum);
   }
-  /**
-   * Drive a stepper motor to a step location (must have been zeroed during homing to be accurate)
-   * 
-   *  @param deviceNum the number identifying the specific stepper motor 0-9
-   *  @param moveto the desired step location (signed 32bit integer)
-   * */
   public void asTo(int deviceNum, int moveto) {
 	  int[] arg= encode32bit(moveto);
 	  	out.write(START_SYSEX);
@@ -460,42 +322,24 @@ public class Firmata {
 	    out.write(arg[3]); //samples from 21 to 27
 	    out.write(arg[4]);	    
 	    out.write(END_SYSEX);
-	    //System.out.println("Stepper "+deviceNum+" has be called to "+moveto+"absolute position");
+	    System.out.println("accelstepper set to move to "+moveto+"absolute position on stepper " + deviceNum);
   }
-  /**
-   * Stop a stepper motor 
-   * 
-   *  @param deviceNum the specific stepper motor to stop
-   *  
-   * */
   public void asStop(int deviceNum) {
 	  	out.write(START_SYSEX);
 	    out.write(ACCELSTEPPER_DATA);
 	    out.write(ACCELSTEPPER_STOP);
 	    out.write(deviceNum);	    
 	    out.write(END_SYSEX);
-	    //System.out.println("Stepper "+deviceNum+" sent a stop command");
+	    System.out.println("stepper " + deviceNum + " was stopped!");
   }
-  /**
-   * Report the position of a stepper motor 
-   * 
-   *  @param deviceNum the stepper motor which we want a report
-   *  
-   * */
   public void asReport(int deviceNum) {
 	  	out.write(START_SYSEX);
 	    out.write(ACCELSTEPPER_DATA);
 	    out.write(ACCELSTEPPER_REPORT);
 	    out.write(deviceNum);	    
 	    out.write(END_SYSEX);
-	    //System.out.println("Stepper "+deviceNum+ " sent report command!");
+	    System.out.println("stepper " + deviceNum + " sent report command!");
 }
-  /**
-   * Set the maximum speed of a stepper motor in steps/second 
-   * 
-   *  @param deviceNum the stepper motor which we want to set speed
-   *  @param speed the maximum speed in steps/second
-   * */
   public void asSetSpeed(int deviceNum, float speed) {
 	    int args = encodeCustomFloat(speed);
 	    out.write(START_SYSEX);
@@ -507,35 +351,21 @@ public class Firmata {
 	    out.write((args>>14) & 127);  //samples from 7-13
 	    out.write((args>>21) & 127);  //samples from 0-6
 	    out.write(END_SYSEX);
-	    //System.out.println("set to "+speed+" steps/s on stepper " + deviceNum);
+	    System.out.println("accelstepper max speed set to "+speed+"steps/s on stepper " + deviceNum);
 	  }
-  /**
-   * Set the acceleration/deceleration of a stepper motor in steps/second^2 
-   * 
-   *  @param deviceNum the stepper motor which we want a report
-   *  @param accel the acceleration in steps/second^2
-   * */
   public void asSetAccel(int deviceNum, float accel) {
 	    int args = encodeCustomFloat(accel);
 	    out.write(START_SYSEX);
 	    out.write(ACCELSTEPPER_DATA);
-	    out.write(ACCELSTEPPER_SETACCEL);
+	    out.write(ACCELSTEPPER_STEP);
 	    out.write(deviceNum);
 	    out.write((args) & 127); //samples from 21 to 27
 	    out.write((args>>7) & 127); //samples from 14-20
 	    out.write((args>>14) & 127);  //samples from 7-13
 	    out.write((args>>21) & 127);  //samples from 0-6
 	    out.write(END_SYSEX);
-	    //System.out.println("accelstepper accel set to "+accel+" steps/s^2 on stepper " + deviceNum);
+	    System.out.println("accelstepper accel set to "+accel+"steps/s^2 on stepper " + deviceNum);
 	  }
-  /**
-   * Setup a group of steppers using Multistepper
-   * 
-   * @param groupNum the group number you would like to setup
-   * @param deviceNum1 the first stepper number which we want to add to group
-   * @param deviceNum2 the second stepper number which we want to add to group
-   * 
-   * */
   public void asMultiConfig(int groupNum, int deviceNum1, int deviceNum2) {
 	    out.write(START_SYSEX);
 	    out.write(ACCELSTEPPER_DATA);
@@ -544,16 +374,10 @@ public class Firmata {
 	    out.write(deviceNum1); //samples from 21 to 27
 	    out.write(deviceNum2); //samples from 14-20
 	    out.write(END_SYSEX);
-	    //System.out.println("multistepper group "+groupNum+" was setup with steppers " + deviceNum1 + " and " + deviceNum2);
+	    System.out.println("multistepper group "+groupNum+"was setup with steppers" + deviceNum1 + " and " + deviceNum2);
 	  }
-  /**
-   * Drive a Multistepper group to a step location (must have been zeroed during homing to be accurate)
-   * 
-   *  @param groupNum the number identifying the specific Multistepper group we want to move
-   *  @param moveto the desired step location (signed 32bit integer)
-   * */
-  public void asMultiTo(int groupNum, int moveto) {
-	  int[] arg= encode32bit(moveto);
+  public void asMultiTo(int groupNum, int steps) {
+	  int[] arg= encode32bit(steps);
 	  out.write(START_SYSEX);
 	    out.write(ACCELSTEPPER_DATA);
 	    out.write(ACCELSTEPPER_MULTI_TO);
@@ -564,28 +388,17 @@ public class Firmata {
 	    out.write(arg[3]); //samples from 21 to 27
 	    out.write(arg[4]);
 	    out.write(END_SYSEX);
-	    //System.out.println("multistepper group "+groupNum+"was moved "+steps +"steps");
+	    System.out.println("multistepper group "+groupNum+"was moved "+steps +"steps");
 	  }
-  /**
-   * Stop a Multistepper group
-   * 
-   *  @param groupNum the number identifying the specific Multistepper group we want to move
-   * 
-   * */
   public void asMultiStop(int groupNum) {
 	    out.write(START_SYSEX);
 	    out.write(ACCELSTEPPER_DATA);
 	    out.write(ACCELSTEPPER_MULTI_STOP);
 	    out.write(groupNum);
 	    out.write(END_SYSEX);
-	    //System.out.println("multistepper group "+groupNum+"was stopped");
+	    System.out.println("multistepper group "+groupNum+"was stopped");
 	  }
-  /**
-   * Encode a signed 32 bit integer to use in other functions
-   * 
-   *  @param val the number (signed 32 bit integer)
-   *  @return integer array of the encoded message
-   * */
+
   
 	public static int[] encode32bit(int val) {
 		boolean inv=false;
@@ -599,16 +412,6 @@ public class Firmata {
 		if(inv) {args[4]=args[4] | 0x08;}
 		return args;
 	}
-	  /**
-	   * Decode a signed 32 bit integer to use in other functions
-	   * 
-	   *  @param arg0 bits (0-6)
-	   *  @param arg1 bits (7-13)
-	   *  @param arg2 bits (14-20)
-	   *  @param arg3 bits (21-27) 
-	   *  @param arg4 bits (28-31, ignore 32-34)
-	   *  @return 32 bit decoded value
-	   * */
 	public static int decode32bit(int arg0, int arg1, int arg2, int arg3, int arg4) {
 		int value = arg0 | (arg1<<7) | (arg2<<14) | (arg3<<21) | ((arg4 << 28) & 0x07);
 		if (arg4 >> 3 == 0x01) {
@@ -616,26 +419,7 @@ public class Firmata {
 		  }
 		return value;
 	}
-	  /**
-	   * Decode an unsigned 32 bit integer to use in other functions
-	   * 
-	   *  @param arg0 bits (0-6)
-	   *  @param arg1 bits (7-13)
-	   *  @param arg2 bits (14-20)
-	   *  @param arg3 bits (21-27) 
-	   *  @param arg4 bits (28-31, ignore 32-34)
-	   *  @return 32 bit decoded value
-	   * */
-	public static int freqDecode(int arg0, int arg1, int arg2, int arg3, int arg4) {
-		int value = arg0 | (arg1<<7) | (arg2<<14) | (arg3<<21) | ((arg4 << 28) & 0x0F);
-		return value;
-	}
-	  /**
-	   * Encode a custom float to communicate with Accelstepper
-	   * 
-	   *  @param decimal the float we would like to encode as a custom float
-	   *  @return the encoded array
-	   * */
+  
 	public static int encodeCustomFloat(float decimal){    
 		int exp = (int)(Math.log10(8388608/Math.abs(decimal))); //maximum precision of 23bit
 		int placeholder=(int)(Math.abs(decimal)*Math.pow(10, exp));
@@ -648,12 +432,6 @@ public class Firmata {
 		//uses bit shifting to generate a 28bit number representing the custom float
 		return args;
 	}  
-	  /**
-	   * Decode a custom float to communicate with Accelstepper
-	   * 
-	   *  @param encoded the float we would like to decode from a custom float
-	   *  @return decoded float
-	   * */
 	public static float decodeCustomFloat(int encoded) {
 		int significand = encoded & (1 << 23)-1;
 //		System.out.println(significand);
@@ -695,100 +473,76 @@ public class Firmata {
 
   private void processSysexMessage() {
 //    System.out.print("[ ");
-//    for (int i = 0; i < sysexBytesRead; i++) System.out.print(storedInputData[i] + ", ");
+//    for (int i = 0; i < storedInputData.length; i++) System.out.print(storedInputData[i] + " ");
 //    System.out.println("]");
-//	  System.out.println(sysexBytesRead);
-    switch(storedInputData[0]) { 
-    	case REPORT_FIRMWARE: //0x78
-//    		System.out.println("REPORT_FIRMWARE called");
-//    		System.out.println(sysexBytesRead);
-    		System.out.println("Firmata Version "+storedInputData[1]+"."+storedInputData[2] );
-    		System.out.print("Arduino sketch name: ");
-    		for(int i=3;i<sysexBytesRead;i+=2) {
-    			char msgChar = (char)(storedInputData[i]|storedInputData[i+1]<<7);
-    		System.out.print(msgChar);}
-    		System.out.println();
-    	break;
-    	case STRING_DATA:
-//    		System.out.println("STRING_DATA called");
-//    		System.out.println(sysexBytesRead);
-    		for(int i=1;i<sysexBytesRead;i+=2) {
-    			char msgChar = (char)(storedInputData[i]|storedInputData[i+1]<<7);
-    		System.out.print(msgChar);}
-    		System.out.println();
-    		break;
-    	case CAPABILITY_RESPONSE: // need to process
-    		System.out.println("Capability Response Called");
-    		System.out.println(sysexBytesRead);
-    	case ANALOG_MAPPING_RESPONSE:
-//    		System.out.println("ANALOG_MAPPING_RESPONSE called");
-//          System.out.println(sysexBytesRead);
-    		for (int pin = 0; pin < analogChannel.length; pin++)
-            analogChannel[pin] = 127;
-    		for (int i = 1; i < sysexBytesRead; i++)
-    		analogChannel[i - 1] = storedInputData[i];
-    		for (int pin = 0; pin < analogChannel.length; pin++) {
-    			if (analogChannel[pin] != 127) {
-    				out.write(REPORT_ANALOG | analogChannel[pin]);
-    				out.write(1);
-    			}
-    		}
-    	break;
-    	case FREQUENCY_COMMAND:  //0x63
-      		int thisTime = freqDecode(storedInputData[2],storedInputData[3],storedInputData[4],storedInputData[5],storedInputData[6]);
-      		int thisCount = freqDecode(storedInputData[7],storedInputData[8],storedInputData[9],storedInputData[10],storedInputData[11]);
-//      		if(thisCount>lastCount) {
-      			freq = (float)(thisCount-lastCount)*1000.0f/(thisTime-lastTime); 
-      			period =(float)(thisTime-lastTime)/(thisCount-lastCount)/1000.0f; 
-      			lastTime=thisTime;
-      			lastCount=thisCount;
-        break;
-    	case ACCELSTEPPER_DATA: { // 0x62
-
+    switch(storedInputData[0]) { //first byte in buffer is command
+//      case CAPABILITY_RESPONSE:
+//        for (int pin = 0; pin < pinModes.length; pin++) {
+//          pinModes[pin] = 0;
+//        }
+//        for (int i = 1, pin = 0; pin < pinModes.length; pin++) {
+//          for (;;) {
+//            int val = storedInputData[i++];
+//            if (val == 127) break;
+//            pinModes[pin] |= (1 << val);
+//            i++; // skip mode resolution for now
+//          }
+//          if (i == sysexBytesRead) break;
+//        }
+//        for (int port = 0; port < pinModes.length; port++) {
+//          boolean used = false;
+//          for (int i = 0; i < 8; i++) {
+//            if (pinModes[port * 8 + pin] & (1 << INPUT) != 0) used = true;
+//          }
+//          if (used) {
+//            out.write(REPORT_DIGITAL | port);
+//            out.write(1);
+//          }
+//        }
+//        break;
+      case ANALOG_MAPPING_RESPONSE:
+        for (int pin = 0; pin < analogChannel.length; pin++)
+          analogChannel[pin] = 127;
+        for (int i = 1; i < sysexBytesRead; i++)
+          analogChannel[i - 1] = storedInputData[i];
+        for (int pin = 0; pin < analogChannel.length; pin++) {
+          if (analogChannel[pin] != 127) {
+            out.write(REPORT_ANALOG | analogChannel[pin]);
+            out.write(1);
+          }
+        }
+      case ACCELSTEPPER_DATA:
           switch(storedInputData[1]) {
-          case ACCELSTEPPER_REPORT: { //0x06
+          case ACCELSTEPPER_REPORT:
         	  for (int i = 2; i < sysexBytesRead; i++) {
         		  accelStepperChannel[i - 2] = storedInputData[i];}
         	  int repDeviceNum = accelStepperChannel[0];
-        	  reportSteps = decode32bit(accelStepperChannel[1],accelStepperChannel[2],accelStepperChannel[3],accelStepperChannel[4],accelStepperChannel[5]);
-        	  //System.out.println("Stepper device "+ repDeviceNum + " is at "+ reportSteps);
-        	  }
-        	  	  break;
-          case ACCELSTEPPER_MOVECOMPLETE: { //0x0A
+        	  int repSteps = decode32bit(accelStepperChannel[1],accelStepperChannel[2],accelStepperChannel[3],accelStepperChannel[4],accelStepperChannel[5]);
+        	 System.out.println("Stepper device "+ repDeviceNum + " is at position "+ repSteps);
+        		  
+          case ACCELSTEPPER_MOVECOMPLETE:
         	  for (int i = 2; i < sysexBytesRead; i++) {
         		  accelStepperChannel[i - 2] = storedInputData[i];}
-        	  moveDeviceNum = accelStepperChannel[0];
-        	  reportSteps = decode32bit(accelStepperChannel[1],accelStepperChannel[2],accelStepperChannel[3],accelStepperChannel[4],accelStepperChannel[5]);
-        	  //System.out.println("Stepper device "+ moveDeviceNum + " has moved to step "+ reportSteps);
-        	  }
-        	  break;
-          case ACCELSTEPPER_MULTI_MOVECOMPLETE: { //0x24
-        	  for (int i = 2; i < sysexBytesRead; i++) {
-        		  accelStepperChannel[i - 2] = storedInputData[i];}
-        	  moveDeviceNum = accelStepperChannel[0];
-        	  //System.out.println("MultiStepper group "+ groupNum + " completed its steps");  
-        	  	}
-          	  break;
-          default: 
+        	  int moveDeviceNum = accelStepperChannel[0];
+        	  int moveSteps = decode32bit(accelStepperChannel[1],accelStepperChannel[2],accelStepperChannel[3],accelStepperChannel[4],accelStepperChannel[5]);
+        	  System.out.println("Stepper device "+ moveDeviceNum + " is at position "+ moveSteps);
         	  
-        	  System.out.println("ACCELSTEPPER COMMAND NOT READ");
-//        	  for(int i = 0; i<sysexBytesRead; i++) {System.out.print(storedInputData[i]+",");}
-//        	  System.out.println();
-//        	  for (int i = 2; i < sysexBytesRead; i++) {
-//        		  accelStepperChannel[i - 2] = storedInputData[i];}
-//        	  int moveDeviceNum = accelStepperChannel[0];
-//        	  int moveSteps = decode32bit(accelStepperChannel[1],accelStepperChannel[2],accelStepperChannel[3],accelStepperChannel[4],accelStepperChannel[5]);
-//        	  //System.out.println(moveDeviceNum + ", " + storedInputData[1]+ ", "+ moveSteps);
-        	  }
-          	break;}
-          	  		
-    }
+          case ACCELSTEPPER_MULTI_MOVECOMPLETE:
+        	  for (int i = 2; i < sysexBytesRead; i++) {
+        		  accelStepperChannel[i - 2] = storedInputData[i];}
+        	  int groupNum = accelStepperChannel[0];
+        	  System.out.println("MultiStepper group "+ groupNum + " completed its steps");  
+          } 
+          break;
+          }
+//    	  for (int i = 1; i < sysexBytesRead; i++)
+//            accelStepperChannel[i - 1] = storedInputData[i];
+//         }
+    	
+
     }
 
-  /**
-   * Process incoming messages from Sysex
-   * @param inputData is the message to decode
-   */
+
   public void processInput(int inputData) {
     int command;
 
